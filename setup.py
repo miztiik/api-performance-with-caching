@@ -19,7 +19,7 @@ setuptools.setup(
     packages=setuptools.find_packages(where="api_performance_with_caching"),
 
     install_requires=[
-        "aws-cdk.core==1.57.0",
+        "aws-cdk.core>=1.58.0",
     ],
 
     python_requires=">=3.6",
