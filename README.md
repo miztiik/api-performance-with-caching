@@ -4,11 +4,11 @@ Mystique Unicorn App is a building new application based on microservice archite
 
 ## 🎯Solutions
 
-Caching is an excellent solution for ensuring that data is served efficiently. By caching the API, the application running on the edge can maintain lower latency. Every cache requires local storage and content needs to be loaded into memory cache memory. If the rate of change of the data is very high, then cache will become stale at the same rate. It is important to choose the appropriate cache invalidation strategies. Setting _Time-To-Live(TTL)_ is one common way of invalidation.
+Ideally, an API request is RESTful, i.e. it makes use of HTTP semantics. Read requests are made using the GET method, authentication credentials are included via a header, and reads are broken down into small, atomic chunks. HTTP is designed to facilitate caching.
 
-We can add caching to return data from the local memory cache instead of querying the database to get the data every time we want to retrieve some data that users request. The good thing about caching is that users can get data faster. However, the data that users get may be outdated. This may also lead to issues when debugging in production environments when something goes wrong as we keep seeing old data.
+In-memory data caching can be one of the most effective strategies to improve your overall application performance and to reduce your database costs. By caching reusable data among requests, We can ensure the application running on the edge is able to maintain lower latency. Every cache requires local storage and content needs to be loaded into memory cache memory.
 
-_Note:_ By default, API Gateway limits the steady-state request rate to `10000` requests per second (rps). It limits the burst (that is, the maximum bucket size) to `5000` requests across all APIs within an AWS account.
+If the rate of change of the data is very high, then cache will become stale at the same rate. It is important to choose the appropriate cache invalidation strategies. Setting _Time-To-Live(TTL)_ is one common way of invalidation. With API Gateway caching, you can cache responses to any request, including POST, PUT and PATCH. _However, this is not enabled by default._
 
 ![API Best Practices: Highly Performant API Design](images/miztiik_api_caching_architecture_00.png)
 
@@ -183,8 +183,7 @@ In this article, we will build the above architecture. using Cloudformation gene
 1.  ## 🔬 Testing the solution
 
     We can use a tool like `curl` or `Postman` to query the url and measure the response time
-    
-    
+
     We need a tool/utility to generate 100's or 1000's or requests simulating a real-world use case. We can use the community edition of the `artillery` for this purpose. We will build a VPC and host an EC2 instance that can run this tool. _Additional Activity, Do try this at home: Run artillery as a fargate task_
 
     The _Outputs_ section of the `secure-private-api` stack has the required information on the urls
