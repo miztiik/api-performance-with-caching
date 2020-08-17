@@ -134,7 +134,7 @@ In this article, we will build the above architecture. using Cloudformation gene
 
       ```bash
       # Queryiing on movie id
-      $ curl ${UNCACHED_API_URL}/9
+      $ time curl ${UNCACHED_API_URL}/9
       {
         "message": "Hello Miztiikal World, How is it going?",
         "movie": {
