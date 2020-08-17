@@ -78,11 +78,11 @@ def lambda_handler(event, context):
     else:
         item = "BackEnd-Lambda Response: Choose Movie id between 0 and 9"
 
-    random_sleep(GlobalArgs.RANDOM_SLEEP_SECS)
+    # random_sleep(GlobalArgs.RANDOM_SLEEP_SECS)
     return {
         "statusCode": 200,
         "body": (f'{{"message": "Hello Miztiikal World, How is it going?",'
-                 f'"item": {json.dumps(item)},'
-                 f'"timestamp": {str(datetime.datetime.now())}'
+                 f'"movie": {json.dumps(item)},'
+                 f'"ts": "{str(datetime.datetime.now())}"'
                  f'}}')
     }

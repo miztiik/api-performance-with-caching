@@ -1,3 +1,4 @@
+import json
 import os
 
 from aws_cdk import aws_apigateway as _apigw
@@ -140,12 +141,94 @@ class UncachedApiStack(core.Stack):
             )
         )
 
+        ########
+        # Add Method for getting Movie by {id}
+        res_movie_by_id = res_movie.add_resource("{id}")
+
+        # Because this is NOT a proxy integration, we need to define our response model
+        response_model = uncached_api.add_model(
+            "ResponseModel",
+            content_type="application/json",
+            model_name="MiztiikResponseModel",
+            schema=_apigw.JsonSchema(
+                schema=_apigw.JsonSchemaVersion.DRAFT4,
+                title="updateResponse",
+                type=_apigw.JsonSchemaType.OBJECT,
+                properties={
+                    "message": _apigw.JsonSchema(type=_apigw.JsonSchemaType.STRING)
+                }
+            )
+        )
+
+        res_movie_by_id_validator_request = uncached_api.add_request_validator(
+            "apiReqValidator",
+            validate_request_parameters=True
+        )
+
+        req_template = {
+            "id": "$input.params('id')"
+        }
+        request_template_string = json.dumps(
+            req_template, separators=(',', ':'))
+
+        # resp_template = """$input.path('$.body.message')"""
+        resp_template = """$input.path('$.body')"""
+
+        res_movie_by_id_method_get = res_movie_by_id.add_method(
+            http_method="GET",
+            request_parameters={
+                "method.request.header.InvocationType": False,
+                "method.request.path.id": True
+            },
+            request_validator=res_movie_by_id_validator_request,
+            integration=_apigw.LambdaIntegration(
+                handler=greeter_fn,
+                proxy=False,
+                request_parameters={
+                    "integration.request.path.id": "method.request.path.id"
+                },
+                cache_key_parameters=[
+                    "method.request.path.id"
+                ],
+                request_templates={
+                    "application/json": request_template_string
+                },
+                passthrough_behavior=_apigw.PassthroughBehavior.NEVER,
+                integration_responses=[
+                    _apigw.IntegrationResponse(
+                        status_code="200",
+                        # selection_pattern="2\d{2}",  # Use for mapping Lambda Errors
+                        response_parameters={
+                            "method.response.header.Access-Control-Allow-Headers": "'cache-control,Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+                            "method.response.header.Content-Type": "'application/json'",
+                        },
+                        response_templates={
+                            "application/json": f"{resp_template}"
+                        }
+                    )
+                ]
+            ),
+            method_responses=[
+                _apigw.MethodResponse(
+                    status_code="200",
+                    response_parameters={
+                        "method.response.header.Content-Type": True,
+                        "method.response.header.Access-Control-Allow-Headers": True,
+                    },
+                    response_models={
+                        "application/json": response_model
+                    }
+                )
+            ]
+        )
+        self.uncached_api_url = res_movie.url
+
         # Outputs
         output_1 = core.CfnOutput(
             self,
             "UncachedApiUrl",
             value=f"{res_movie.url}",
-            description="Use an utility like artitllery to generate load against this API."
+            description="Use an utility like curl/Postman to access this API."
         )
         output_2 = core.CfnOutput(
             self,

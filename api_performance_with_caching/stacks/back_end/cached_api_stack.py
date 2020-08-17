@@ -1,13 +1,13 @@
+import json
 import os
 
 from aws_cdk import aws_apigateway as _apigw
 from aws_cdk import aws_dynamodb as _dynamodb
 from aws_cdk import aws_lambda as _lambda
 from aws_cdk import aws_logs as _logs
+from aws_cdk import core
 
 from data_loader_stacks.custom_resources.ddb_data_loader.ddb_data_loader_stack import DdbDataLoaderStack
-import json
-from aws_cdk import core
 
 
 class GlobalArgs:
@@ -120,8 +120,8 @@ class CachedApiStack(core.Stack):
             logging_level=_apigw.MethodLoggingLevel.INFO,
             method_options={
                 "/cached/movie/GET": _apigw.MethodDeploymentOptions(
-                caching_enabled=False
-            )
+                    caching_enabled=False
+                )
             }
         )
 
@@ -206,7 +206,7 @@ class CachedApiStack(core.Stack):
                 request_templates={
                     "application/json": request_template_string
                 },
-                passthrough_behavior=_apigw.PassthroughBehavior.WHEN_NO_TEMPLATES,
+                passthrough_behavior=_apigw.PassthroughBehavior.NEVER,
                 integration_responses=[
                     _apigw.IntegrationResponse(
                         status_code="200",
@@ -234,6 +234,7 @@ class CachedApiStack(core.Stack):
                 )
             ]
         )
+        self.cached_api_url = res_movie.url
 
         # Outputs
         output_1 = core.CfnOutput(
