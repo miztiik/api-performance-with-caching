@@ -76,7 +76,7 @@ class CachedApiStack(core.Stack):
             handler="index.lambda_handler",
             code=_lambda.InlineCode(greeter_fn_code),
             timeout=core.Duration.seconds(10),
-            reserved_concurrent_executions=1,
+            reserved_concurrent_executions=50,
             environment={
                 "LOG_LEVEL": f"{stack_log_level}",
                 "Environment": "Production",

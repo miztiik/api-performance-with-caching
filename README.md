@@ -2,6 +2,8 @@
 
 Mystique Unicorn App is a building new application based on microservice architectural pattern. The app provides updates on events in real-time. At any given time, there will be a number of users querying for the same data (Very much like match data of a sporting event). During the event, Mystique corp would like to keep the latency as low as possible and while maintaining the data freshness. Once the event is no longer relevant, the query load on the API will be siginificantly less and latency is not a concern. As an cloud consultant to Mystique Corp, can you help their dev team to maintain _lower latency_ and _data freshness_ of their app?
 
+![API Best Practices: Highly Performant API Design](images/miztiik_api_latency_architecture_00.png)
+
 ## 🎯Solutions
 
 Ideally, an API request is RESTful, i.e. it makes use of HTTP semantics. Read requests are made using the GET method, authentication credentials are included via a header, and reads are broken down into small, atomic chunks. HTTP is designed to facilitate caching.
@@ -182,90 +184,16 @@ In this article, we will build the above architecture. using Cloudformation gene
 
 1.  ## 🔬 Testing the solution
 
-    We can use a tool like `curl` or `Postman` to query the url and measure the response time
+    We can use a tool like `curl` or `Postman` to query the url and measure the response time. The _Outputs_ section of the respective stacks has the required information on the urls
 
-    We need a tool/utility to generate 100's or 1000's or requests simulating a real-world use case. We can use the community edition of the `artillery` for this purpose. We will build a VPC and host an EC2 instance that can run this tool. _Additional Activity, Do try this at home: Run artillery as a fargate task_
-
-    The _Outputs_ section of the `secure-private-api` stack has the required information on the urls
-
-    - We need to invoke the `SecureApiUrl` from the same VPC. To make it easier to test the solution, I have created another template that will deploy an EC2 instance in the same VPC and in the same security group as the API Gateway. You can login to the instances using [Systems Manager](https://www.youtube.com/watch?v=-ASMtZBrx-k). You can deploy this stack or create your own instance.
-
-      Initiate the deployment with the following command,
-
-      ```bash
-      cdk deploy load-generator-vpc-stack
-      cdk deploy miztiik-artillery-load-generator
-      ```
-
-    - Connect to the EC2 instance using Session Manager - [Get help here](https://www.youtube.com/watch?v=-ASMtZBrx-k)
-
-      - Switch to bash shell `bash`
-      - Install `nodejs`
-
-        ```bash
-        # https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/setting-up-node-on-ec2-instance.html
-        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
-        . ~/.nvm/nvm.sh
-        nvm install node
-        # Confirm Node is installed properly
-        node -e "console.log('Running Node.js ' + process.version)"
-        # Install artilleruy
-        npm install -g artillery
-        # Setup log file location to save artillery test results
-        sudo touch /var/log/miztiik-load-generator-unthrottled.log
-        sudo touch /var/log/miztiik-load-generator-throttled.log
-        sudo chown ssm-user:ssm-user /var/log/miztiik-load-generator-*
-        ```
-
-    Now we are all almost set to bombard our APIs with requests. As the first step, let us set our API url as environment variables. Ensure you change the values from the appropriate stack
+    The sample script below will generate requests for `31` seconds(\_Remember our `TTL` is `30` seconds) . We can clearly observe that the timestamp `ts` value in all the requests are the same until the `TTL` expires the cache. As soon as the cache expires, the `ts` value changes. If you do that same loop with the `UNCACHED_API_URL`, you can observe that the `ts` value changes for every request.
 
     ```bash
-    UNTHROTLLED_API_URL="https://3t354sxysj.execute-api.us-east-1.amazonaws.com/miztiik-unthrottled/unsecure/greeter"
-    SECURE_API_URL="https://9r4ftbohse.execute-api.us-east-1.amazonaws.com/miztiik-throttled/secure/greeter"
-    ```
-
-    The below artillery request will generate about 1500 requests, simulating the arrival of 5 users per second and each generating one request. We have also informed artillery to add new users for about 5 minutes(_300 seconds_). In a real-world scenario, you might want to throw much bigger requests at your workloads. If you are testing and playaround with the services, this can be a good starting point.
-
-    ```bash
-     artillery quick -d 310 -r 5 -n 1 ${UNTHROTLLED_API_URL} >> /var/log/miztiik-load-generator-unthrottled.log &
-     artillery quick -d 310 -r 5 -n 1 ${SECURE_API_URL} >> /var/log/miztiik-load-generator-throttled.log &
-
-     # Check the logs for summary
-     tail -20 /var/log/miztiik-load-generator-unthrottled.log
-     tail -20 /var/log/miztiik-load-generator-throttled.log
-    ```
-
-    Expected Output,
-
-    ```bash
-    $ curl ${SECURE_API_URL}
-    {"message":"Forbidden"}
-
-    # If you want to try verbose curl
-    $ curl -v ${SECURE_API_URL}
-    # truncated output
-    ...
-    < HTTP/2 403
-    < content-type: application/json
-    < content-length: 23
-    < x-amzn-requestid: b5b76376-29f1-4e9a-99e6-5e19ebe7bb82
-    < x-amzn-errortype: ForbiddenException
-    < x-cache: Error from cloudfront
-    < via: 1.1 5eb5e19c1a78889d10ff8f1551ed2aa.cloudfront.net (CloudFront)
-    < x-amz-cf-pop: IAD89-C1
-    < x-amz-cf-id: MngW-1YE6-LXbV6d5K21jOtSYTkVdVd_IUDMAvk4HWUaYLVtxeRQA==
-    ...
-    # truncated output
-    ```
-
-    You can notice that after throwing more `133` requests at the WAF+API GW, You should be able to see the public IP address of EC2 instances being blocked by WAF. _Dont forget to update the \_web-acl-id_ of your waf
-
-    ```bash
-    curl -H "Cache-control: max-age=0" $API_ENDPOINT - This should print a timestamp that changes every second you run it, because the Cache-Control header is being respected despite the fact that requireAuthorizationForCacheControl is true. This is NOT expected
+    curl -H "Cache-control: max-age=0" "${CACHED_API_URL}" - This should print a timestamp that changes every second you run it, because the Cache-Control header is being respected despite the fact that requireAuthorizationForCacheControl is true. This is NOT expected
     ```
 
     ```bash
-    CACHED_API_URL=""
+    CACHED_API_URL="https://srcjub0asd.execute-api.us-east-1.amazonaws.com/miztiik/cached/movie/9"
     runtime=31
     now=$(date +%s)
     future=$((now+runtime))
@@ -276,15 +204,32 @@ In this article, we will build the above architecture. using Cloudformation gene
     done
     ```
 
+    If we can do the same testing on `postman` we can notice latency values as well,
 
-    Here is a snapshot of the WAF dashboard showing the `allowed` and `blocked` requests. As the requests reached the threshold in a `5` minute period, all the remaning requests were blocked.
-
-    ![Security best practices in Amazon API Gateway: Throttling & Web Application Firewallm](images/miztiik_api_security_waf_00.png)
+    ![API Best Practices: Highly Performant API Design](images/miztiik_api_caching_architecture_01.png)
 
 
-    You can observe here that, With throttling & WAF, we were able to block a significant amount of spam traffic, maintain the `min` response times under increased load and also serve a _p95_ in about `300ms`
+    We can also measure the end-user latency using `curl` and push the log metrics to cloudwatch and let cloudwatch generate the graphs.
+
+    ![API Best Practices: Highly Performant API Design](images/miztiik_api_caching_architecture_02.png)
+
+    |Metric|Description|
+    |-|-|
+    |`CacheHitCount`|The number of requests served from the API cache.|
+    |`CacheMissCount`|The number of requests served from the back end when API caching is enabled.|
+    |`IntegrationLatency`|The time in milliseconds between when API Gateway relays a request to the back end and when it receives a response from the back end.|
+    |`Latency`|The time in milliseconds between when API Gateway receives a request from a client and when it returns a response to the client. The latency includes the integration latency and other API Gateway overhead.|
 
     _Additional Learnings:_ You can check the logs in cloudwatch for more information or increase the logging level of the lambda functions by changing the environment variable from `INFO` to `DEBUG`
+
+1.  ## 📒 Conclusion
+
+    As you can see from the above graphs, the improvements are significant, and you can get these same benefits for your API today. It's easy to get started with API Caching, But cacheability will vary widely across your portfolio of APIs. It is critical to design and implement a caching strategy on an individual API basis based on your application requirements. They key question _What should be cached?_ to consider here can be helped with the following pointers,
+
+    - Any resource accessible via `HTTP GET`
+    - Static data
+    - Responses that change rarely or at predictable intervals
+    - Responses used by many clients (high volume data)
 
 1.  ## 🧹 CleanUp
 
@@ -310,7 +255,7 @@ In this article, we will build the above architecture. using Cloudformation gene
 
 ## 📌 Who is using this
 
-This repository to teaches how to secure your api with WAF & API GW Throttling to new developers, Solution Architects & Ops Engineers in AWS. Based on that knowledge these Udemy [course #1][103], [course #2][102] helps you build complete architecture in AWS.
+This repository aims to teach how to improve your api performance with caching to new developers, Solution Architects & Ops Engineers in AWS. Based on that knowledge these Udemy [course #1][103], [course #2][102] helps you build complete architecture in AWS.
 
 ### 💡 Help/Suggestions or 🐛 Bugs
 
@@ -322,15 +267,19 @@ Thank you for your interest in contributing to our project. Whether it's a bug r
 
 ### 📚 References
 
-1. [Throttle API requests for better throughput][1]
+1. [API Gateway Caches are local to regions][1]
 
-1. [Rate Based WAFv2 Rules][2]
+1. [Find latency of requests to edge-optimized API][2]
 
-1. [Troubleshoot HTTP 403 Forbidden errors from API Gateway][3]
+1. [Using `curl` for latency measurement][3]
 
-1. [Update WebAcl to WAFv2][4]
+1. [AWS Whitepaper: Database Caching Strategies Using Redis][4]
 
-1. [Protecting APIs using AWS WAF][5]
+1. [API Gateway VTL mapping template reference][5]
+
+1. [Delete stack that is stuck in the `DELETE_FAILED` status][6]
+
+1. [Fix Lambda-backed custom resource's stuck in `DELETE_FAILED` status or `DELETE_IN_PROGRESS`][7]
 
 ### 🏷️ Metadata
 
@@ -338,18 +287,13 @@ Thank you for your interest in contributing to our project. Whether it's a bug r
 
 ![miztiik-success-green](https://img.shields.io/badge/miztiik-success-green)
 
-https://aws.amazon.com/premiumsupport/knowledge-center/best-practices-custom-cf-lambda/
-https://aws.amazon.com/premiumsupport/knowledge-center/cloudformation-stack-delete-failed/
-https://aws.amazon.com/premiumsupport/knowledge-center/cloudformation-lambda-resource-delete/
-https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-mapping-template-reference.html
-https://d0.awsstatic.com/whitepapers/Database/database-caching-strategies-using-redis.pdf
-https://forums.aws.amazon.com/thread.jspa?threadID=195290#646425
-
-[1]: https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-request-throttling.html
-[2]: https://docs.aws.amazon.com/waf/latest/developerguide/waf-rule-statement-type-rate-based.html
-[3]: https://aws.amazon.com/premiumsupport/knowledge-center/api-gateway-troubleshoot-403-forbidden/
-[4]: https://docs.aws.amazon.com/waf/latest/APIReference/API_UpdateWebACL.html
-[5]: https://aws.amazon.com/blogs/compute/protecting-your-api-using-amazon-api-gateway-and-aws-waf-part-i/
+[1]: https://forums.aws.amazon.com/thread.jspa?threadID=195290#646425
+[2]: https://aws.amazon.com/premiumsupport/knowledge-center/source-latency-requests-api-gateway/
+[3]: https://github.com/awslabs/aws-support-tools/blob/master/APIGateway/Tools/curl_for_latency/curl_for_latency.sh
+[4]: https://d0.awsstatic.com/whitepapers/Database/database-caching-strategies-using-redis.pdf
+[5]: https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-mapping-template-reference.html
+[6]: https://aws.amazon.com/premiumsupport/knowledge-center/cloudformation-stack-delete-failed/
+[7]: https://aws.amazon.com/premiumsupport/knowledge-center/cloudformation-lambda-resource-delete/
 [100]: https://www.udemy.com/course/aws-cloud-security/?referralCode=B7F1B6C78B45ADAF77A9
 [101]: https://www.udemy.com/course/aws-cloud-security-proactive-way/?referralCode=71DC542AD4481309A441
 [102]: https://www.udemy.com/course/aws-cloud-development-kit-from-beginner-to-professional/?referralCode=E15D7FB64E417C547579
