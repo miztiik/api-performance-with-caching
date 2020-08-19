@@ -1,4 +1,4 @@
-# API Best Practices: Highly Performant API Design
+# API Best Practices: Highly Performant API Design - API Caching
 
 Mystique Unicorn App is a building new application based on microservice architectural pattern. The app provides updates on events in real-time. At any given time, there will be a number of users querying for the same data (Very much like match data of a sporting event). During the event, Mystique corp would like to keep the latency as low as possible and while maintaining the data freshness. Once the event is no longer relevant, the query load on the API will be siginificantly less and latency is not a concern. As an cloud consultant to Mystique Corp, can you help their dev team to maintain _lower latency_ and _data freshness_ of their app?
 
@@ -188,9 +188,6 @@ In this article, we will build the above architecture. using Cloudformation gene
 
     The sample script below will generate requests for `31` seconds(\_Remember our `TTL` is `30` seconds) . We can clearly observe that the timestamp `ts` value in all the requests are the same until the `TTL` expires the cache. As soon as the cache expires, the `ts` value changes. If you do that same loop with the `UNCACHED_API_URL`, you can observe that the `ts` value changes for every request.
 
-    ```bash
-    curl -H "Cache-control: max-age=0" "${CACHED_API_URL}" - This should print a timestamp that changes every second you run it, because the Cache-Control header is being respected despite the fact that requireAuthorizationForCacheControl is true. This is NOT expected
-    ```
 
     ```bash
     CACHED_API_URL="https://srcjub0asd.execute-api.us-east-1.amazonaws.com/miztiik/cached/movie/9"
