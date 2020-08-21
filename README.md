@@ -170,9 +170,9 @@ In this article, we will build the above architecture. using Cloudformation gene
         - _Customizations_: You can change the `TTL` value and the cache size. In this demo,
           - `TTL` = 30Seconds
           - `Cache Size` = 0.5GB
+          _Do Try This At Home:_ Try changing them in the stacks see how it impacts the performance of your API.
 
-
-          Try changing them to see how it impacts the performance of your API.
+      **Note**: It takes a few minutes for the cache to become live after the stack had been deployed. The initial queries sent to the API immediately after successful deployment of the stack will result in _cache-hit-miss_
 
       Initiate the deployment with the following command,
 
