@@ -203,8 +203,7 @@ In this article, we will build the above architecture. using Cloudformation gene
 
     If we can do the same testing on `postman` we can notice latency values as well,
 
-    ![API Best Practices: Highly Performant API Design](images/miztiik_api_caching_architecture_01.png)
-
+    ![API Best Practices: Highly Performant API Design](images/miztiik_api_caching_architecture_postman_01.png)
 
     We can also measure the end-user latency using `curl` and push the log metrics to cloudwatch and let cloudwatch generate the graphs.
 
